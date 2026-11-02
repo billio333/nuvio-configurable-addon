@@ -1,7 +1,8 @@
 {
   "name": "nuvio-configurable-addon",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {"start": "node server.cjs", "check": "node --check server.cjs && node --check provider-worker.cjs"},
-  "engines": {"node": ">=22"}
+  "engines": {"node": ">=22"},
+  "dependencies": {"cheerio": "1.0.0"}
 }
