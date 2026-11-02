@@ -1,6 +1,7 @@
 const {parentPort,workerData}=require('node:worker_threads');
 const vm=require('node:vm');
 const cheerio=require('cheerio');
+const cryptoJs=require('crypto-js');
 const label=String(workerData.entry.id).replace(/[^A-Za-z0-9_-]/g,'');
 let stage='initializing';
 let completed=false;
@@ -8,6 +9,7 @@ const log=(event,data={})=>console.log(JSON.stringify({provider:label,event,...d
 const watchdog=setTimeout(()=>{if(!completed)log('approaching_worker_timeout',{stage});},18000);
 function providerRequire(name){
   if(name==='cheerio-without-node-native'||name==='cheerio')return cheerio;
+  if(name==='crypto-js')return cryptoJs;
   log('unsupported_module',{moduleName:String(name).replace(/[^A-Za-z0-9_./@-]/g,'').slice(0,120)});
   throw new Error('Unsupported provider module');
 }
@@ -26,7 +28,7 @@ async function tracedFetch(input,options){
 }
 (async()=>{
   const {root,entry,args}=workerData;
-  log('worker_started',{adapterVersion:'0.1.1'});
+  log('worker_started',{adapterVersion:'0.1.3-crypto'});
   stage='validating_provider_path';
   if(typeof entry.filename!=='string'||!/^providers\/[A-Za-z0-9_.-]+\.js$/.test(entry.filename))throw new Error('Unsafe provider path');
   stage='downloading_provider';
