@@ -2,6 +2,8 @@ const http=require('node:http');
 const {Worker}=require('node:worker_threads');
 const {renderConfig}=require('./config-page.cjs');
 const {createPool}=require('./pool.cjs');
+const {createService}=require('./netmirror-service.cjs');
+const netMirror=createService();
 const ROOT='https://raw.githubusercontent.com/NuvioPlugin/All-in-One-Nuvio/main/';
 const QUALITIES=['2160','1080','720','480','unknown'];
 const mappings=new Map(),resultsCache=new Map(),stats=new Map();
@@ -16,7 +18,7 @@ async function inventory(deadline=Date.now()+15000,signal){
     const data=await r.json();if(!Array.isArray(data.scrapers))throw new Error('Invalid upstream manifest');cached=data.scrapers;cachedAt=Date.now();
   }return cached;
 }
-function manifest(configured){return {id:'community.billio333.nuvio-select',version:'0.1.3',name:'Nuvio Source Select',description:'Experimental configurable All-in-One-Nuvio bridge',resources:['stream'],types:['movie','series'],catalogs:[],behaviorHints:{configurable:true,configurationRequired:!configured}};}
+function manifest(configured){return {id:'community.billio333.nuvio-select',version:'0.1.4',name:'Nuvio Source Select',description:'Experimental configurable All-in-One-Nuvio bridge',resources:['stream'],types:['movie','series'],catalogs:[],behaviorHints:{configurable:true,configurationRequired:!configured}};}
 function decode(token){
   if(token.length>12000)throw new Error('Configuration too large');const c=JSON.parse(Buffer.from(token,'base64url').toString('utf8'));
   if(!c||!Array.isArray(c.sources)||c.sources.length>100||c.sources.some(x=>typeof x!=='string'))throw new Error('Invalid source selection');
@@ -26,7 +28,9 @@ function resolution(s){
   function read(value){const text=String(value||'').replace(/[\u200B-\u200D\uFEFF]/g,'');const match=/(?:^|[^A-Za-z0-9])(2160|1080|720|480)(?:p|i)?(?=$|[^A-Za-z0-9])/i.exec(text);if(match)return match[1];if(/(?:^|[^A-Za-z0-9])(?:4k|uhd)(?=$|[^A-Za-z0-9])/i.test(text))return '2160';return null;}
   return read(s.quality)||read(s.title)||read(s.name)||'unknown';
 }
-function execute(entry,args,signal,deadline){return new Promise(resolve=>{
+function execute(entry,args,signal,deadline){
+  if(entry.id==='netmirror')return netMirror.request(entry,args,{root:ROOT,signal,deadline});
+  return new Promise(resolve=>{
   if(signal.aborted||Date.now()>=deadline)return resolve([]);let worker,settled=false,timer;const started=Date.now();
   const finish=(streams,reason)=>{
     if(settled)return;settled=true;clearTimeout(timer);signal.removeEventListener('abort',cancel);
@@ -62,7 +66,7 @@ const server=http.createServer(async(req,res)=>{
   let controller,deadline=Infinity;const disconnected=()=>{if(!res.writableEnded)controller?.abort();};
   try{
     const path=new URL(req.url,'http://localhost').pathname.split('/').filter(Boolean).map(decodeURIComponent);
-    if(path.length===1&&path[0]==='health')return json(200,{ok:true,version:'0.1.3',globalWorkers:2,requestBudgetMs:18000});
+    if(path.length===1&&path[0]==='health')return json(200,{ok:true,version:'0.1.4',transientWorkerLimit:2,persistentNetMirrorWorkerLimit:1,maxProviderWorkers:3,requestBudgetMs:18000,netmirror:netMirror.status()});
     if(!path.length||(path.length===1&&path[0]==='configure')||(path.length===2&&path[1]==='configure')){const config=path.length===2?decode(path[0]):{sources:[],resolutions:QUALITIES};const html=renderConfig(await inventory(),config);res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(html);}
     if(path.length===1&&path[0]==='manifest.json')return json(200,manifest(false));
     if(path.length===2&&path[1]==='manifest.json'){decode(path[0]);return json(200,manifest(true));}
