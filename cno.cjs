@@ -1,4 +1,4 @@
-const BASE='https://beta.cno.to';
+const BASE='https://beta.cno.to',PLAYBACK_BASE='https://cno.to';
 async function getStreams(id,type,season,episode,options={}){
  if(!/^\d+$/.test(String(id))||!['movie','tv'].includes(type))throw Error('Invalid Cno media request');
  if(type==='tv'&&(!Number.isInteger(season)||season<0||!Number.isInteger(episode)||episode<1))throw Error('Invalid Cno episode');
@@ -10,9 +10,11 @@ async function getStreams(id,type,season,episode,options={}){
  if(!data||!Array.isArray(data.sources))throw Error('Cno sources array missing');
  const streams=[],seen=new Set();for(const source of data.sources.slice(0,100)){
   if(!source||source.kind!=='hls'||typeof source.url!=='string'||!source.url.trim())continue;
-  let url;try{url=new URL(source.url,BASE);}catch{continue;}if(!['https:','http:'].includes(url.protocol)||seen.has(url.href))continue;seen.add(url.href);
-  const label=String(source.label||'HLS').replace(/[\r\n]/g,' ').slice(0,80),quality=String(source.quality||'Auto').slice(0,40);
-  streams.push({name:'Cno | '+label+' | '+quality,title:'TMDB '+type+' '+id+(type==='tv'?' | S'+season+'E'+episode:'')+'\n'+label+' | '+quality,url:url.href,quality,headers:{Referer:BASE+'/',Origin:BASE}});
+  let url;try{url=new URL(source.url,BASE);}catch{continue;}
+  if(url.origin===BASE&&url.pathname.startsWith('/api/s/'))url=new URL(url.pathname+url.search+url.hash,PLAYBACK_BASE);
+  if(!['https:','http:'].includes(url.protocol)||seen.has(url.href))continue;seen.add(url.href);
+  const label=String(source.label||'HLS').replace(/[\r\n]/g,' ').slice(0,80),quality=String(source.quality||'Auto').slice(0,40),playbackOrigin=url.origin===PLAYBACK_BASE?PLAYBACK_BASE:BASE;
+  streams.push({name:'Cno | '+label+' | '+quality,title:'TMDB '+type+' '+id+(type==='tv'?' | S'+season+'E'+episode:'')+'\n'+label+' | '+quality,url:url.href,quality,headers:{Referer:playbackOrigin+'/',Origin:playbackOrigin}});
  }
  log('cno_sources',{reported:data.sources.length,hls:streams.length,embeds:data.sources.filter(s=>s&&s.kind==='embed').length});return streams;
 }
