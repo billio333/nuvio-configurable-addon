@@ -23,12 +23,14 @@ function decode(token){
   return c;
 }
 function resolution(s){
-  const text=String(s.quality||'')+' '+String(s.name||'')+' '+String(s.title||'');
-  if(/(?:2160p?|4k|uhd)/i.test(text))return '2160';
-  if(/1080p?/i.test(text))return '1080';
-  if(/720p?/i.test(text))return '720';
-  if(/480p?/i.test(text))return '480';
-  return 'unknown';
+  function read(value){
+    const text=String(value||'').replace(/[\u200B-\u200D\uFEFF]/g,'');
+    const match=/(?:^|[^A-Za-z0-9])(2160|1080|720|480)(?:p|i)?(?=$|[^A-Za-z0-9])/i.exec(text);
+    if(match)return match[1];
+    if(/(?:^|[^A-Za-z0-9])(?:4k|uhd)(?=$|[^A-Za-z0-9])/i.test(text))return '2160';
+    return null;
+  }
+  return read(s.quality)||read(s.title)||read(s.name)||'unknown';
 }
 function runProvider(entry,args){return new Promise(resolve=>{
   const worker=new Worker(require.resolve('./provider-worker.cjs'),{workerData:{root:ROOT,entry,args},resourceLimits:{maxOldGenerationSizeMb:96}});
