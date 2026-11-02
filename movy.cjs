@@ -20,10 +20,10 @@ async function getStreams(id,type,season,episode,options={}){
  if(!/^\d+$/.test(String(id))||!['movie','tv'].includes(type))throw Error('Invalid Movy media request');
  if(type==='tv'&&(!Number.isInteger(season)||season<0||!Number.isInteger(episode)||episode<1))throw Error('Invalid Movy episode');
  const key=options.apiKey||process.env.TMDB_API_KEY;if(!key)throw Error('Movy requires TMDB_API_KEY for metadata');
- const fetcher=options.fetch||fetch,log=options.log||(()=>{}),headers={Referer:SITE,Origin:SITE.slice(0,-1),'User-Agent':'Mozilla/5.0','Accept':'application/json, text/plain, */*'};
+ const fetcher=options.fetch||fetch,log=options.log||(()=>{}),headers={Referer:SITE,Origin:SITE.slice(0,-1),'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36','Accept':'application/json, text/plain, */*'};
  async function request(url,phase,allow401=false){
   log('movy_phase',{phase});const response=await fetcher(url,{headers,signal:AbortSignal.timeout(6000)});
-  if(!response.ok&&!(allow401&&response.status===401)){log('movy_http_error',{phase,status:response.status});throw Error('Movy upstream request failed');}return response;
+  if(!response.ok&&!(allow401&&response.status===401)){log('movy_http_error',{phase,status:response.status,contentType:(response.headers.get('content-type')||'').slice(0,100),challenge:response.headers.get('cf-mitigated')==='challenge',cloudflareRay:response.headers.has('cf-ray')});throw Error('Movy upstream request failed');}return response;
  }
  const metadataUrl=new URL('https://api.themoviedb.org/3/'+type+'/'+id);metadataUrl.searchParams.set('api_key',key);metadataUrl.searchParams.set('append_to_response','external_ids');
  const meta=await (await request(metadataUrl,'metadata')).json();const title=type==='tv'?meta.name:meta.title;if(typeof title!=='string'||!title)throw Error('Movy title metadata missing');
