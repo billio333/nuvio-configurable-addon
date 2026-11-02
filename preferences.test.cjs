@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const policy=require('./source-policy.cjs').createPolicy();
+const fresh=policy.normalize({sources:['showbox','gramcinema','4khdhub','dooflix']});
+assert.deepEqual(fresh.sources,['4khdhub','dooflix']);
+assert.deepEqual(fresh.resolutions,['1080','720','unknown']);
+assert.ok(policy.state(fresh,'showbox').hidden);
+assert.ok(policy.state(fresh,'gramcinema').hidden);
+assert.ok(policy.blocked(fresh,'showbox'));
+assert.ok(policy.blocked(fresh,'gramcinema'));
+assert.equal(policy.blocked(fresh,'4khdhub'),false);
+assert.deepEqual(policy.normalize({sources:['4khdhub'],resolutions:['2160','480']}).resolutions,['2160','480']);
+console.log(JSON.stringify({tests:'passed',checks:['token providers removed','public-link source retained','4K and 480p default off','explicit resolution choices preserved']}));
