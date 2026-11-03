@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');const {formatStream}=require('./stream-format.cjs');
+const fn='Family.Guy.S22E01.Fertilized.Megg.1080p.DSNP.WEB-DL.DDP5.1.H.264-NTb.mkv';
+const req={type:'series',season:22,episode:1};
+let r=formatStream({entry:{id:'4khdhub',name:'4KHDHub'},stream:{name:'4KHDHub',title:fn+'\n772.34 MB',url:'https://pixeldrain.dev/api/file/abc'},request:req});
+assert.equal(r.name,'4KHDHub • 1080p • WEB-DL');
+assert.equal(r.title,'Family Guy — S22E01 — Fertilized Megg\nH.264 • DDP 5.1 • 772 MB\nHost: Pixeldrain');
+assert.equal(r.filename,fn);
+r=formatStream({entry:{id:'4khdhub'},stream:{title:fn,url:'https://x.r2.cloudflarestorage.com/f'},request:req});assert.match(r.title,/Host: Cloudflare R2/);assert.doesNotMatch(r.title,/MB/);
+r=formatStream({entry:{id:'4khdhub'},stream:{title:fn,url:'https://pixel.hubcloud.ist/f'},request:req});assert.match(r.title,/Host: HubCloud/);
+r=formatStream({entry:{id:'cno'},stream:{name:'Cno | HLS | Auto',title:'TMDB tv 1434 | S22E1\nHLS | Auto',quality:'Auto',url:'https://cno.to/api/s/21/tv/1434/22/1?v=3'},request:req});
+assert.equal(r.name,'CNO • Auto');assert.equal(r.title,'S22E01\nServer 21 • HLS');assert.equal(r.resolution,'unknown');assert.equal(r.filename,'');
+r=formatStream({entry:{id:'castle'},stream:{name:'Castle',url:'https://a.b/x.mp4'},request:{type:'movie'},lowConfidence:true});assert.equal(r.name,'Low confidence | Castle • Auto');
+console.log(JSON.stringify({tests:'passed',suite:'stream-format'}));
