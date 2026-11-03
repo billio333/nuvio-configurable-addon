@@ -4,7 +4,7 @@ const {renderConfig}=require('./config-page.cjs');
 const {createPool}=require('./pool.cjs');
 const policy=require('./source-policy.cjs').createPolicy();
 const {formatStream}=require('./stream-format.cjs');
-let logoPng=null;try{logoPng=require('node:fs').readFileSync(require('node:path').join(__dirname,'B2.png'));}catch{}
+let logoPng=null;try{logoPng=require('./logo-data.cjs');}catch{}
 const ROOT='https://raw.githubusercontent.com/NuvioPlugin/All-in-One-Nuvio/main/';
 const mappings=new Map(),resultsCache=new Map(),stats=new Map();let cached,cachedAt=0;
 const log=data=>console.log(JSON.stringify(data));
