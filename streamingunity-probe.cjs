@@ -21,12 +21,26 @@ async function probe(){
   try{props=JSON.parse($('#app').attr('data-page')||'{}').props||{};}catch{}
   const shape=v=>Array.isArray(v)?{type:'array',length:v.length}:v&&typeof v==='object'?{type:'object',keys:Object.keys(v).slice(0,20)}:{type:typeof v};
   const title=props.title&&typeof props.title==='object'?Object.fromEntries(['id','tmdbId','tmdb_id','name','slug','type'].filter(k=>['string','number'].includes(typeof props.title[k])).map(k=>[k,String(props.title[k]).slice(0,120)])):null;
-  return {status:result.status,pageTitle:$('title').text().trim().slice(0,120),challengeDetected:/just a moment|security verification|challenge-platform|cf-chl-/i.test(result.body),inertiaProps:Object.fromEntries(Object.entries(props).slice(0,25).map(([k,v])=>[k,shape(v)])),title,frames:$('iframe[src]').map((i,e)=>clean($(e).attr('src'))).get().slice(0,8),scripts:$('script[src]').map((i,e)=>clean($(e).attr('src'))).get().slice(0,12),playlistMarkerFound:result.body.includes('.m3u8')};
+  return {status:result.status,pageTitle:$('title').text().trim().slice(0,120),challengeDetected:/just a moment|security verification|challenge-platform|cf-chl-|attention required|cf-error-details|sorry, you have been blocked/i.test(result.body),inertiaProps:Object.fromEntries(Object.entries(props).slice(0,25).map(([k,v])=>[k,shape(v)])),title,frames:$('iframe[src]').map((i,e)=>clean($(e).attr('src'))).get().slice(0,8),scripts:$('script[src]').map((i,e)=>clean($(e).attr('src'))).get().slice(0,12),playlistMarkerFound:result.body.includes('.m3u8')};
  }
  const started=Date.now(),output={event:'streamingunity_probe',target:'Family Guy S22E1 (user-supplied URL)'};
  try{output.watch=inspect(await get(watch));}catch(error){output.watch={error:error.name};}
  try{output.iframe=inspect(await get(base+'/en/iframe/976?episode_id=89463&canPlayFHD=1'));}catch(error){output.iframe={error:error.name};}
  console.log(JSON.stringify({...output,ms:Date.now()-started}));
+ let browser,timer;const browserStarted=Date.now();const result={event:'streamingunity_browser_probe'};
+ try{
+  timer=setTimeout(()=>{if(browser)browser.close().catch(()=>{});},35000);
+  browser=await require('playwright-core').chromium.launch({executablePath:'/usr/bin/chromium',headless:true,timeout:12000,args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']});
+  const context=await browser.newContext();const page=await context.newPage();
+  context.on('page',p=>{if(p!==page)p.close().catch(()=>{});});
+  await context.route('**/*',route=>{const r=route.request();if(['image','font','media'].includes(r.resourceType())&&!r.url().includes('.m3u8'))return route.abort();return route.continue();});
+  const pending=page.waitForResponse(r=>r.url().includes('.m3u8')||/mpegurl/i.test(r.headers()['content-type']||''),{timeout:18000}).then(r=>r,()=>null);
+  const navigation=await page.goto(watch,{waitUntil:'domcontentloaded',timeout:12000});
+  result.page=inspect({status:navigation?.status()||0,body:await page.content()});
+  if(result.page.status>=400||result.page.challengeDetected){result.playlistFound=false;result.outcome='blocked_in_normal_browser';}
+  else{const response=await pending;result.playlistFound=!!response;if(response){const body=await response.text();result.playlistStatus=response.status();result.playlistHost=new URL(response.url()).hostname;result.isHls=body.trimStart().startsWith('#EXTM3U');result.outcome=result.isHls?'playlist_found_playback_unverified':'non_hls_response';}else result.outcome='no_playlist_observed';}
+ }catch(error){result.error=error.name;result.outcome='browser_check_failed';}
+ finally{clearTimeout(timer);if(browser)await browser.close().catch(()=>{});console.log(JSON.stringify({...result,ms:Date.now()-browserStarted}));}
 }
 if(require.main===module&&process.argv.includes('--install'))installTester();
 module.exports={installTester,probe};
