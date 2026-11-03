@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {parseMaster,firstSegment,getStreams}=require('./pressplay.cjs');
+const {patchServer,patchTester}=require('./install-pressplay.cjs');
+const base='https://media.example/master.m3u8?token=test';
+assert.deepEqual(parseMaster('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=1920x1080\n1080/index.m3u8\n#EXT-X-STREAM-INF:RESOLUTION=1280x720\n/720.m3u8',base),[{url:'https://media.example/1080/index.m3u8',height:1080},{url:'https://media.example/720.m3u8',height:720}]);
+assert.equal(firstSegment('#EXTM3U\n#EXTINF:5,\nseg.ts','https://media.example/1080/index.m3u8'),'https://media.example/1080/seg.ts');
+assert.deepEqual(parseMaster('#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=1920x1080\nfile:///secret',base),[]);
+assert.equal(firstSegment('#EXTM3U\n#EXTINF:5,\nfile:///secret',base),null);
+const server=fs.readFileSync('server.cjs','utf8'),tester=fs.readFileSync('source-tester.cjs','utf8');
+assert.equal(patchServer(patchServer(server)),patchServer(server));
+assert.equal(patchTester(patchTester(tester)),patchTester(tester));
+assert.ok(patchServer(server).includes("id:'pressplay'"));
+assert.ok(patchServer(server).includes("sources.includes('pressplay')?60000:18000"));
+(async()=>{assert.deepEqual(await getStreams('invalid','tv',22,1),[]);assert.deepEqual(await getStreams('1434','tv',-1,1),[]);console.log('PressPlay parser and integration tests passed; live playback not tested.');})().catch(e=>{console.error(e);process.exitCode=1;});
