@@ -35,22 +35,17 @@ async function getStreams(id,type,season,episode,{signal,deadline=Date.now()+600
   for(const k of ['referer','origin','user-agent'])if(captured[k])headers[k]=captured[k];
   const cookies=await context.cookies(master);if(cookies.length)headers.cookie=cookies.map(c=>c.name+'='+c.value).join('; ');
   const forUrl=url=>{const h={...headers};if(new URL(url).origin!==origin)delete h.cookie;return h;};
-  const r=await fetch(master,{headers:forUrl(master),signal:requestSignal(5000)});const text=await r.text();if(!r.ok||!text.trimStart().startsWith('#EXTM3U')){log({stage:'master_unavailable',status:r.status,count:0});return [];}
-  await browser.close();browser=null;
-  for(const variant of parseMaster(text,r.url||master)){
-   if(signal?.aborted||deadline-Date.now()<1500)break;
-   try{
-    const h=forUrl(variant.url);const v=await fetch(variant.url,{headers:h,signal:requestSignal(4000)});const body=await v.text();if(!v.ok||!body.trimStart().startsWith('#EXTM3U')||!body.includes('#EXTINF:'))continue;
-    const segment=firstSegment(body,v.url||variant.url);if(!segment)continue;
-    const sample=await fetch(segment,{headers:{...forUrl(segment),Range:'bytes=0-1023'},signal:requestSignal(4000)});
-    if(!sample.ok||!sample.body){await sample.body?.cancel();continue;}
-    const reader=sample.body.getReader();let bytes;try{bytes=(await reader.read()).value;}finally{await reader.cancel().catch(()=>{});}
-    if(!bytes?.length||/text\/html/i.test(sample.headers.get('content-type')||''))continue;
-    const quality=variant.height?variant.height+'p':'unknown';
-    streams.push({name:'PressPlay / MoviesAPI',title:'PressPlay / MoviesAPI | '+quality,quality,url:variant.url,headers:h});
-   }catch(error){log({stage:'variant_failed',error:error.name});}
+  const r=await fetch(master,{headers:forUrl(master),signal:requestSignal(8000)});const text=await r.text();if(!r.ok||!text.trimStart().startsWith('#EXTM3U')){log({stage:'master_unavailable',status:r.status,count:0});return [];}
+  const resolved=r.url||master;
+  const variants=parseMaster(text,resolved);
+  log({stage:'master_resolved',status:r.status,variantCount:variants.length,heights:variants.map(v=>v.height),playbackVerified:false});
+  streams.push({name:'PressPlay / MoviesAPI',title:'PressPlay / MoviesAPI | Auto | Playback unverified',quality:'unknown',url:resolved,headers:forUrl(resolved)});
+  for(const variant of variants){
+   if(variant.url===resolved)continue;
+   const quality=variant.height?variant.height+'p':'unknown';
+   streams.push({name:'PressPlay / MoviesAPI',title:'PressPlay / MoviesAPI | '+quality+' | Playback unverified',quality,url:variant.url,headers:forUrl(variant.url)});
   }
-  log({stage:'completed',count:streams.length});return streams;
+  log({stage:'completed',count:streams.length,playbackVerified:false});return streams;
  }catch(error){log({stage:'failed',error:error.name,count:streams.length});return streams;}
  finally{signal?.removeEventListener('abort',close);if(browser)await browser.close().catch(()=>{});busy=false;}
 }
