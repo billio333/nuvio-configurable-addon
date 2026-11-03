@@ -7,4 +7,4 @@ RUN node install-movy.cjs && node install-cno.cjs && node install-pressplay.cjs 
 USER node
 ENV PORT=7000
 EXPOSE 7000
-CMD ["node","-e","require('./server.cjs');require('./streamingunity-probe.cjs').probe().catch(e=>console.log(JSON.stringify({event:'streamingunity_probe_failed',error:e.name})));" ]
+CMD ["node","server.cjs"]
