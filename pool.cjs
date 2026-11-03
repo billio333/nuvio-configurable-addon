@@ -1,5 +1,5 @@
 const {sourceHealth}=require('./source-health.cjs');
-const {createSharedExecutor}=require('./provider-cache.cjs');
+const {createSharedExecutor,isCancelledResult}=require('./provider-cache.cjs');
 function createPool(limit,execute){
  const sharedExecute=createSharedExecutor(execute);
  let active=0;const waiting=[];let batches=0;
@@ -10,8 +10,16 @@ function createPool(limit,execute){
   active++;b.running++;
   console.log(JSON.stringify({event:'provider_queue_wait',provider:entry.id,ms:Date.now()-b.created}));
   Promise.resolve().then(()=>sharedExecute(entry,b.args,b.controller.signal,b.deadline)).then(streams=>{
-   if(!b.finished){sourceHealth.record(entry,b.args,streams);b.results.push({entry,streams:Array.isArray(streams)?streams:[]});}else sourceHealth.release(entry,b.args);
-  },()=>{if(!b.finished)sourceHealth.record(entry,b.args,[],{error:true});else sourceHealth.release(entry,b.args);}).finally(()=>{active--;b.running--;if(!b.finished&&!b.pending.length&&!b.running)b.finish('complete');pump();});
+   if(b.finished||b.controller.signal.aborted||isCancelledResult(streams)||Date.now()>=b.deadline){
+    sourceHealth.release(entry,b.args);
+    if(!b.finished&&(isCancelledResult(streams)||Date.now()>=b.deadline))b.finish('deadline');
+    return;
+   }
+   sourceHealth.record(entry,b.args,streams);b.results.push({entry,streams:Array.isArray(streams)?streams:[]});
+  },()=>{
+   if(b.finished||b.controller.signal.aborted||Date.now()>=b.deadline){sourceHealth.release(entry,b.args);if(!b.finished)b.finish('deadline');}
+   else sourceHealth.record(entry,b.args,[],{error:true});
+  }).finally(()=>{active--;b.running--;if(!b.finished&&!b.pending.length&&!b.running)b.finish('complete');pump();});
  }}
  return function run(entries,args,{deadline,signal}={}){
   if(batches>=16)return Promise.reject(new Error('Service busy; retry shortly'));batches++;
