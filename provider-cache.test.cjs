@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');
+const {createSharedExecutor}=require('./provider-cache.cjs');
+const entry={id:'test-cache',filename:'providers/test.js'},args=['1434','tv',22,1];
+const links=()=>[{url:'https://media.example/video.m3u8',headers:{Referer:'https://player.example/'}}];
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+(async()=>{
+ let clock=Date.now(),calls=0;
+ const cached=createSharedExecutor(async()=>{calls++;return links();},{now:()=>clock,log:()=>{}});
+ const first=await cached(entry,args);first[0].headers.Referer='changed';
+ const second=await cached(entry,args);assert.equal(calls,1);assert.equal(second[0].headers.Referer,'https://player.example/');
+ await cached(entry,['1434','tv',22,2]);assert.equal(calls,2);
+ clock+=30001;await cached(entry,args);assert.equal(calls,3);
+ let emptyCalls=0;const empty=createSharedExecutor(async()=>{emptyCalls++;return [];},{log:()=>{}});await empty(entry,args);await empty(entry,args);assert.equal(emptyCalls,2);
+ let expiredCalls=0;const expired=createSharedExecutor(async()=>{expiredCalls++;return [{url:'https://media.example/a.m3u8?exp='+Math.floor((Date.now()+5000)/1000)}];},{log:()=>{}});await expired(entry,args);await expired(entry,args);assert.equal(expiredCalls,2);
+ let sharedCalls=0,release,underlyingSignal;
+ const shared=createSharedExecutor(async(e,a,s)=>{sharedCalls++;underlyingSignal=s;return new Promise(resolve=>{release=()=>resolve(links());});},{log:()=>{}});
+ const a=new AbortController(),b=new AbortController();
+ const p=shared(entry,args,a.signal,Date.now()+1000),q=shared(entry,args,b.signal,Date.now()+1000);await tick();assert.equal(sharedCalls,1);
+ a.abort();assert.deepEqual(await p,[]);assert.equal(underlyingSignal.aborted,false);release();assert.equal((await q).length,1);
+ let stopped=false;const cancellable=createSharedExecutor((e,a,s)=>new Promise(resolve=>{const done=()=>{stopped=true;resolve([]);};s.addEventListener('abort',done,{once:true});if(s.aborted)done();}),{log:()=>{}});
+ const c=new AbortController(),d=new AbortController();const x=cancellable(entry,args,c.signal),y=cancellable(entry,args,d.signal);await tick();c.abort();d.abort();await Promise.all([x,y]);assert.equal(stopped,true);
+ let errors=0;const failing=createSharedExecutor(async()=>{errors++;throw Error('test');},{log:()=>{}});await assert.rejects(failing(entry,args));await assert.rejects(failing(entry,args));assert.equal(errors,2);
+ console.log('Provider cache tests passed: episode isolation, expiry, cloning, shared requests, cancellation, and failure retry.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
