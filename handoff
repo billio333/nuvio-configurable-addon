@@ -1,0 +1,820 @@
+Project handoff: BiLL’s Nuvio media-sourcing addons
+1. Mission and user expectations
+The user is billio333 on GitHub.
+
+The goal is independence from PenguPlay: build a branded Nuvio-compatible plugin that handles media sourcing across multiple independent providers.
+
+The user currently relies on PenguPlay and wants their own alternative if PenguPlay shuts down.
+
+Scope:
+
+Movies and TV sourcing.
+
+Multiple independently integrated providers.
+
+Readable stream results.
+
+Resolution/provider/host filtering and sorting.
+
+Performance, caching, resilience, correct episode matching.
+
+Branding with the user’s existing logo.
+
+Explicitly out of scope:
+
+Recommendations.
+
+Watchlists.
+
+Tracking.
+
+Other media-library features unrelated to sourcing.
+
+Working style:
+
+The assistant is expected to lead as project manager and implementer.
+
+The user has repeatedly approved work and followed the assistant’s recommendations.
+
+Avoid repetitive planning, tiny unnecessary permission requests, and asking the user to repeat facts already supplied.
+
+Accept the user’s Nuvio playback confirmations. Do not make deployed Render URLs or repeated release checklists a blocker to useful work.
+
+Still request the required tool confirmation before external writes, using fully resolved targets and exact content.
+
+Be precise about prepared, committed, deployed, and playback-verified states.
+
+2. Repository architecture and direction
+Sandbox / future combined plugin
+Repository:
+billio333/nuvio-configurable-addon
+
+Known deployment:
+https://nuvio-configurable-addon.onrender.com
+
+Purpose:
+
+Experiment with sources and features.
+
+Develop the user’s branded, combined sourcing plugin.
+
+Do not blindly deploy experimental changes into the verified standalone addons.
+
+The earlier assistant encouraged separate source addons for isolation. The user accepted that, and two now work. However, the user’s ultimate goal remains one plugin handling all sourcing. Standalone addons are useful verified implementations and fallbacks, not necessarily the final user experience.
+
+Verified standalone 4KHDHub addon
+Repository:
+billio333/nuvio-4khdhub-addon
+
+Visibility: private.
+
+Unique addon ID:
+community.billio333.4khdhub
+
+Name:
+BiLL's 4KHDHub
+
+Separate Render deployment exists; its actual assigned address was not provided.
+
+User confirmed:
+
+Initial standalone deployment fully tested and working in Nuvio.
+
+After the optimization discussion, the user again explicitly said 4KHDHub works and had already been tested in Nuvio.
+
+Treat it as user-playback-verified. Do not keep reopening that question without a concrete regression.
+
+Verified standalone CNO addon
+Repository:
+billio333/nuvio-cno-addon
+
+Visibility: private.
+
+Unique addon ID:
+community.billio333.cno
+
+Name:
+BiLL's CNO
+
+Separate Render deployment exists; actual assigned address was not provided.
+
+User explicitly confirmed standalone CNO works in Nuvio.
+
+Agreed change boundary
+Immediate branding and result-formatting work belongs in the sandbox.
+
+Leave the two verified standalone addons unchanged during that work.
+
+3. Immediate approved work
+The user said “do it” to:
+
+Inspect the sandbox’s current source.
+
+Add the existing B2.png as the addon logo.
+
+Implement reusable, clean stream-result formatting.
+
+Preserve original filenames separately.
+
+Investigate MovieBox as the next source.
+
+Investigate VidFast after MovieBox.
+
+Resolve what “2peckle” actually refers to if enough evidence becomes available.
+
+Do not ask for another general planning approval. Inspect, prepare, and test the implementation; then request the required exact commit confirmation.
+
+No branding/result-formatting changes have been committed yet.
+
+4. Existing logo
+User supplied:
+
+https://github.com/billio333/nuvio-configurable-addon/blob/main/B2.png
+
+Use this existing asset. The user did not request generation of a new logo.
+
+Previous web-reader attempts could not retrieve either the GitHub image page or its raw URL. Therefore:
+
+The image’s appearance and dimensions were not inspected.
+
+Do not claim it is already resized, validated, or installed.
+
+Inspect it through working GitHub/file tooling.
+
+Agreed implementation direction:
+
+Serve the image from the addon’s own deployment, for example /logo.png.
+
+Reference an appropriate publicly reachable PNG URL in the manifest’s logo property.
+
+Do not use the GitHub HTML blob page as an image URL.
+
+Avoid making production branding depend on the sandbox asset indefinitely.
+
+Stremio-compatible manifest documentation:
+https://github.com/Stremio/stremio-addon-sdk/blob/master/docs/api/responses/manifest.md
+
+Stream documentation:
+https://github.com/Stremio/stremio-addon-sdk/blob/master/docs/api/responses/stream.md
+
+5. Desired result formatting
+Real 4KHDHub result filename:
+
+text
+Family.Guy.S22E01.Fertilized.Megg.1080p.DSNP.WEB-DL.DDP5.1.H.264-NTb.mkv
+Actual reported size:
+772.34 MB
+
+Possible clean presentation:
+
+text
+4KHDHub • 1080p • WEB-DL
+Family Guy — S22E01 — Fertilized Megg
+H.264 • DDP 5.1 • 772 MB
+Host: Pixeldrain
+Only display metadata supported by the result. Do not invent quality, language, codecs, playback verification, or other facts.
+
+CNO example:
+
+text
+CNO • Auto
+Family Guy — S22E01
+Server 21 • HLS
+Important:
+
+CNO’s working result is Auto/unknown quality.
+
+Do not relabel it as 1080p.
+
+Metadata-based filtering does not restrict the variants inside an Auto HLS playlist.
+
+Preserve original filenames when available, including appropriate use of behaviorHints.filename.
+
+Clean the display without damaging playback URLs, required headers, or content identity.
+
+6. Standard regression title and known results
+Use the same established example; do not ask which title again:
+
+Family Guy, season 22, episode 1.
+
+TMDB show ID:
+1434
+
+Direct diagnostic stream path:
+
+text
+/stream/series/tmdb:1434:22:1.json
+Successful standalone-source test in sandbox
+User provided:
+
+json
+{
+  "source": "4khdhub",
+  "type": "series",
+  "media": "tmdb:1434",
+  "season": 22,
+  "episode": 1,
+  "count": 3,
+  "seconds": 10.44,
+  "allResolutions": false,
+  "status": "responded"
+}
+All three were the same 1080p episode file via different hosts:
+
+pixeldrain.dev
+
+An r2.cloudflarestorage.com host.
+
+pixel.hubcloud.ist
+
+They were three alternative hosts, not three different quality versions.
+
+Working CNO result
+text
+https://cno.to/api/s/21/tv/1434/22/1?v=3
+Headers:
+
+json
+{
+  "Referer": "https://cno.to/",
+  "Origin": "https://cno.to"
+}
+The reported source list contained one HLS source and two embeds in recorded tests. Our adapter returns HLS sources and excludes embeds.
+
+7. Important sandbox diagnosis and fix
+Initially:
+
+4KHDHub worked alone.
+
+Combined requests returned CNO and PressPlay but omitted 4KHDHub.
+
+User supplied actual Render logs.
+
+Observed:
+
+Isolated 4KHDHub extraction completed in about 10.30 seconds with three links.
+
+Combined 4KHDHub extractions hit provider_timeout at approximately 20.34 and 20.82 seconds.
+
+PressPlay launched Chromium and took roughly 33–42 seconds overall.
+
+Castle also timed out.
+
+CNO was substantially slower under combined load.
+
+The batch itself completed normally; completed:4 meant four tasks settled, not four successful sources.
+
+Conclusion:
+
+Immediate cause of missing 4KHDHub results: worker timeout before extraction completed.
+
+Resource contention was the likely explanation for the combined-request slowdown, not proven down to a specific CPU/memory/network resource.
+
+Do not misstate the cause as Nuvio hiding results or resolution filtering.
+
+Implemented sandbox scheduling fix:
+
+At most two non-browser extractions simultaneously.
+
+PressPlay runs after queued non-browser work.
+
+PressPlay is exclusive within the service process, including across requests.
+
+No browser extraction overlaps other provider extraction tasks.
+
+Existing playback logic/timeouts retained.
+
+Commit:
+5150bd769068130f300f5c6478153d63c0262c83
+
+User then confirmed CNO, 4KHDHub, and PressPlay all appeared in Nuvio.
+
+Sandbox configuration used
+json
+{
+  "sources": ["4khdhub", "castle", "pressplay", "cno"],
+  "resolutions": ["1080", "720", "unknown"],
+  "lowPriority": ["castle"],
+  "disabledSources": [],
+  "reports": []
+}
+The sandbox extends its overall request budget to 60 seconds when PressPlay is selected. The ordinary provider worker cap remains 20 seconds. Without PressPlay, the original overall budget is 18 seconds.
+
+8. Sandbox files and build-time patching
+Important files previously inspected:
+
+text
+server.cjs
+provider-worker.cjs
+config-page.cjs
+pool.cjs
+pool.test.cjs
+provider-cache.cjs
+provider-cache.test.cjs
+source-policy.cjs
+source-health.cjs
+source-tester.cjs
+health-panel.cjs
+castle-guards.cjs
+cno.cjs
+cno.test.cjs
+install-cno.cjs
+movy.cjs
+install-movy.cjs
+pressplay.cjs
+install-pressplay.cjs
+streamingunity-probe.cjs
+Dockerfile
+SOURCE-STATUS.md
+Critical implementation detail:
+The sandbox Docker build patches checked-in source files using installer scripts:
+
+text
+node install-movy.cjs
+node install-cno.cjs
+node install-pressplay.cjs
+node streamingunity-probe.cjs --install
+Do not assume the checked-in server.cjs or config-page.cjs exactly matches deployed runtime code before those patches.
+
+Example:
+
+Base server source showed two workers and an 18-second budget.
+
+install-pressplay.cjs patched concurrency settings, provider registration, request budgets, configuration notes, and PressPlay browser reuse.
+
+Inspect current code and installer interactions before editing branding or formatting. Test rendered configuration JavaScript as well as server syntax.
+
+Upstream sandbox provider root:
+
+text
+https://raw.githubusercontent.com/NuvioPlugin/All-in-One-Nuvio/main/
+Ordinary upstream adapter interface:
+
+text
+getStreams(tmdbId, "movie" | "tv", season, episode)
+IMDb IDs are mapped through TMDB using the server’s TMDB_API_KEY.
+
+9. Standalone 4KHDHub implementation
+Initial implementation commit:
+
+e9b023615cb17eb6451d0772c4833e6127fb34cf
+
+Latest known optimization commit:
+
+6aad0ab2c2373bf831de2ec36e0198e988509639
+
+Current known version:
+0.1.1
+
+Files:
+
+text
+app.cjs
+app.test.cjs
+package.json
+Dockerfile
+README.md
+PERFORMANCE.md
+Runtime:
+
+Node.js 22.
+
+cheerio pinned directly to 1.0.0.
+
+No Chromium or other providers.
+
+Disposable worker threads.
+
+Maximum two uncached extraction requests.
+
+Excess uncached requests receive HTTP 503.
+
+Worker extraction timeout: 20 seconds.
+
+Worker V8 old-generation limit: 96 MiB, not a total process memory limit.
+
+IMDb mapping timeout: eight seconds.
+
+Default qualities: 1080, 720, unknown.
+
+Explicit 360p excluded.
+
+Successful results cached for up to 30 seconds.
+
+Cache bounded to 32 entries, 128 KiB per entry.
+
+Recognizable URL-expiry guards.
+
+Returns links and headers, does not proxy video.
+
+Pinned upstream adapter:
+
+text
+NuvioPlugin/All-in-One-Nuvio
+providers/4khdhub.js
+commit 3f09a6ff4360498895e622877af7a32212f75038
+v0.1.1 optimization already committed
+createProviderLoader lazily downloads pinned adapter source once per running process.
+
+Concurrent initialization shares one download promise.
+
+Source retained in memory.
+
+Failed downloads can retry.
+
+Rejects empty, syntactically malformed, or over-1-MiB source.
+
+Each extraction still creates a worker and evaluates retained source.
+
+Does not keep a persistent worker pool.
+
+Does not yet deduplicate whole extractions.
+
+The 20-second extraction deadline includes waiting for adapter initialization.
+
+Shared adapter download has its own fetch timeout and is not cancelled just because one requesting client disconnects.
+
+Logs:
+
+provider_code modes:
+
+download
+
+shared_download
+
+memory_hit
+
+stream_timing modes:
+
+fresh_extraction
+
+result_cache
+
+busy
+
+Fresh timing includes mapping and extraction milliseconds.
+
+Process uptime/request number help distinguish early/later requests.
+
+These logs do not measure Render wake-up time before Node receives a request.
+
+Tests passed locally with fixtures/mock extraction. User subsequently confirmed working playback; no need to keep demanding the same proof.
+
+Security/licensing caveats
+Node VM and worker threads are not security sandboxes.
+
+Worker receives an empty environment instead of main-process credentials.
+
+Still requires isolated hosting with no sensitive mounts or privileged network access.
+
+No authentication or per-client rate limiting yet.
+
+No committed dependency lockfile; transitive dependencies resolve at build time.
+
+Moving Docker Node 22 tag, not digest-pinned.
+
+Upstream README declares GPLv3; no root LICENSE appeared in the inspected tree.
+
+Preserve attribution and review applicable licensing before vendoring/distributing upstream code or bundled images.
+
+Runtime fetching does not waive licensing obligations.
+
+10. Standalone CNO implementation
+Commit:
+
+4ed059f8a7c8675bc82c680e6766e2c7403e3d5b
+
+Version:
+0.1.0
+
+Files:
+
+text
+app.cjs
+cno.cjs
+app.test.cjs
+package.json
+Dockerfile
+README.md
+Runtime:
+
+Node.js 22.
+
+No third-party npm dependencies.
+
+No Chromium, worker threads, remote JavaScript, or other providers.
+
+Max two concurrent uncached requests; excess returns HTTP 503.
+
+Overall cancellation timer: 16 seconds.
+
+IMDb mapping timeout: eight seconds.
+
+CNO HTTP timeout: six seconds.
+
+Abort signals propagate to CNO fetch.
+
+Successful results cached up to 30 seconds.
+
+Bounded 32-entry / 128-KiB-per-entry cache.
+
+Recognizable expiry guards; Amazon signed-date URLs are not cached.
+
+No in-flight extraction deduplication yet.
+
+Adapter:
+
+Lookup base: https://beta.cno.to
+
+Playback base: https://cno.to
+
+TV path:
+
+text
+/screen-api/tv/{tmdbId}/episode/{season}/{episode}
+Movie path:
+
+text
+/screen-api/movie/{tmdbId}
+Selects kind: "hls" entries.
+
+Excludes embeds, invalid protocols, duplicate URLs.
+
+Rewrites beta-origin /api/s/ playback URLs onto cno.to, preserving path/query/fragment.
+
+Preserves correct Origin and Referer.
+
+Important:
+
+Auto maps to unknown quality.
+
+Unknown enabled by default.
+
+Quality filtering cannot constrain variants inside an Auto playlist.
+
+User verified separate CNO addon playback in Nuvio.
+
+README still contained older candidate/unverified language when last inspected; update it when doing a relevant documentation change, but do not make documentation cleanup a blocker to feature work.
+
+11. Other provider status
+PressPlay / MoviesAPI
+User confirmed playback in Nuvio.
+
+Remains slow.
+
+Uses Chromium to run the player and capture a playlist.
+
+Prior observed uncached extraction: roughly 33 seconds; some combined requests took over 40 seconds.
+
+Repeat requests were much faster due to caching.
+
+Brief browser reuse exists in sandbox installer patches.
+
+360p and unrestricted Auto results excluded.
+
+Keep sandbox-only until a useful, independently tested improvement.
+
+Do not mix browser work back into unrestricted parallel execution with lightweight sources.
+
+Streaming Unity
+Parked.
+
+Both ordinary requests and normal Chromium on Render received HTTP 403 / Cloudflare block pages. Browser probe reported:
+
+text
+outcome: blocked_in_normal_browser
+playlistFound: false
+Not a selectable source.
+
+Automatic startup network probes were disabled in:
+
+008e87162252fe6ec730e78e24d2b3cc57fff987
+
+Diagnostic module remains; --install preserves the source tester UI without running those network probes.
+
+No CAPTCHA-solving/challenge-bypass implementation was added.
+
+Do not repeat identical probes without a new lead.
+
+Nepu
+Ordinary Render request got HTTP 403 / “Just a moment…” page.
+
+No successful extraction established; no recorded Chromium test.
+
+Parked, not declared globally broken.
+
+Movy / Miami
+Experimental adapter exists. No confirmed playback. Not proven impossible.
+
+Source status documentation
+Sandbox SOURCE-STATUS.md was created in:
+
+e76ee6860e03176a44c4e34ea4fd20d6d3349543
+
+It predates later verification and is stale in places. Do not treat old “unverified” notes as overriding the user’s later confirmations.
+
+12. New-source investigation
+The user reports PenguPlay returns these providers for Family Guy S22E1:
+
+4KHDHub
+
+2peckle
+
+MovieBox
+
+VidFast
+
+The user asks whether we can independently use the same underlying sources. Answer:
+
+Investigate underlying sources and appropriately licensed public adapters.
+
+Do not simply relay PenguPlay responses.
+
+Avoid dependence on PenguPlay’s infrastructure.
+
+MovieBox leads
+Public repository found:
+
+https://github.com/ArabibZ/nuvio-providers
+
+Search result describes native MovieBox provider/discovery and identity handling. Not yet reviewed deeply or tested on Render.
+
+Other public MovieBox repos were found, some explicitly advertising VIP spoofing. Do not automatically choose or implement those mechanisms. Review ordinary access requirements, licenses, and compatibility.
+
+MovieBox is the next integration candidate—not already integrated or guaranteed.
+
+VidFast leads
+Official domain directory:
+
+https://vidfast.domains/
+
+Public resolver lead:
+
+https://github.com/sharoon7171/vidfast-pro-stream-resolver
+
+Not yet deeply reviewed or integrated.
+
+Official embed support does not prove direct playable HLS extraction from Render. Review access requirements and permitted integration.
+
+2peckle
+Identity unresolved.
+
+Evidence that the label appears in PenguPlay/Nuvio:
+https://github.com/NuvioMedia/NuvioTVSmart/issues/746
+
+Do not silently assume it is a known website or invent a domain. It may be a provider label, host, or internal integration.
+
+An expanded result screenshot or exact website could help, but do not make this block MovieBox/VidFast work.
+
+13. Performance principles already agreed
+Useful techniques:
+
+Distinguish hosting cold starts, fresh extraction, and result-cache hits.
+
+Reuse initialized adapter code.
+
+Deduplicate identical in-flight requests.
+
+Preserve cancellation semantics: one disconnected client must not cancel another client’s shared request.
+
+Keep cache TTLs conservative around signed URLs and IP/session restrictions.
+
+Match concurrency to actual server capacity.
+
+Bound slow providers rather than always waiting indefinitely.
+
+Keep browser-backed extraction isolated.
+
+Do not claim link extraction proves playback.
+
+Do not claim caching establishes faster fresh extraction.
+
+Future shared-task tests should cover:
+
+Same-title concurrent requests execute once.
+
+Different titles do not collapse together.
+
+Cancellation of one subscriber leaves the other intact.
+
+Last-subscriber cancellation stops unnecessary work.
+
+Failure does not poison future retries.
+
+Deadline and cache expiry behavior.
+
+Provider-specific headers and quality settings remain correct.
+
+Do not let optimization become an endless detour that prevents adding sources and user-visible features.
+
+14. Sourcing-only feature priorities
+Approved/recommended product direction:
+
+Logo and branded identity.
+
+Clean labels with provider, resolution, episode, host.
+
+Preserve original filenames.
+
+Predictable quality/provider/host sorting.
+
+Duplicate handling that preserves useful alternative hosts.
+
+Correct title/episode matching.
+
+Per-provider time budgets and failure isolation.
+
+Shared in-flight requests and conservative caches.
+
+Language/codec/HDR/size filters only where metadata supports them.
+
+Consistent next-episode grouping where client/protocol supports it.
+
+Do not add “working” badges based only on URLs being returned.
+
+15. Hosting
+User chose to stay on Render.
+
+Known deployment procedure already used successfully:
+
+New Web Service for each standalone repo.
+
+Private GitHub repo access.
+
+Branch main.
+
+Docker runtime.
+
+Blank root directory.
+
+./Dockerfile.
+
+No Docker command override.
+
+/health.
+
+TMDB_API_KEY configured privately in Render.
+
+Leave Render’s PORT alone; app binds 0.0.0.0.
+
+Open /configure to generate addon manifest URL.
+
+Do not ask for API keys in chat or embed them in GitHub/configuration URLs.
+
+Render free services sleep when idle and free hours are workspace-shared. Hosting cold starts are not fixed by adapter caching. Paid hosting was discussed but not authorized or purchased.
+
+Other hosts were researched, but migration is not the current task.
+
+16. GitHub connector failure in the previous conversation
+Earlier in this conversation, the connector worked:
+
+Source ID: github_mcp_direct
+
+Tools discovered included get_file_contents, push_files, create_repository, etc.
+
+Later it disappeared from available tools even though the user’s settings still showed it connected.
+
+Checks performed:
+
+GitHub-specific tool discovery returned no connectors.
+
+Full connector listing also lacked GitHub.
+
+Repeated @GitHub mentions did not restore it.
+
+The user is understandably frustrated with being told to reconnect something already shown as connected.
+
+In the new conversation:
+
+Discover GitHub tools again immediately.
+
+If available, describe schemas before calling.
+
+Do not assume it is disconnected based on the prior conversation.
+
+If unavailable, explain the session/tool availability mismatch accurately.
+
+Do not claim any changes were committed without a successful write result.
+
+The last successful repository change in this history was 4KHDHub optimization commit 6aad0ab…. No logo/formatter/new-source changes followed it.
+
+17. Immediate execution instructions for the next assistant
+Discover GitHub tooling.
+
+Inspect current sandbox code, installer patches, and B2.png.
+
+Implement logo serving/manifest branding and a reusable results formatter in the sandbox.
+
+Preserve URLs, headers, original filenames, and established scheduling.
+
+Test against the actual Family Guy fixture and CNO Auto fixture.
+
+Present one coherent exact commit for confirmation.
+
+After that, investigate MovieBox and VidFast with concrete code/license/network findings.
+
+Keep verified standalone addons untouched.
+
+Do not restart a generic planning conversation or request Render addresses as a prerequisite.
+
+The user has already authorized the direction. The next useful response is implementation progress, not another round of deciding what the project should be.
