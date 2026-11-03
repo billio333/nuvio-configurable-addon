@@ -6,6 +6,23 @@ const policy=require('./source-policy.cjs').createPolicy();
 const ROOT='https://raw.githubusercontent.com/NuvioPlugin/All-in-One-Nuvio/main/';
 const mappings=new Map(),resultsCache=new Map(),stats=new Map();let cached,cachedAt=0;
 const log=data=>console.log(JSON.stringify(data));
+let sourceProbePromise=null,sourceProbeUntil=0;
+function probeSources(){
+ if(sourceProbePromise&&Date.now()<sourceProbeUntil)return sourceProbePromise;
+ sourceProbeUntil=Date.now()+60000;
+ sourceProbePromise=Promise.all([
+  ['Nepu','https://nepu.io/'],
+  ['PressPlay','https://pressplayz.top/watch/tv-family-guy-fjboc?season=22&episode=1']
+ ].map(async([source,url])=>{
+  const started=Date.now();
+  try{
+   const response=await fetch(url,{signal:AbortSignal.timeout(10000),headers:{'User-Agent':'Mozilla/5.0','Accept':'text/html'}});
+   const html=await response.text();
+   return {source,status:response.status,finalHost:new URL(response.url).hostname,milliseconds:Date.now()-started,characters:html.length,title:html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/\s+/g,' ').trim().slice(0,160)||null,challengeDetected:/just a moment|security verification|challenge-platform|cf-chl-/i.test(html),embedMarkerFound:/data-embed\s*=/i.test(html),playlistMarkerFound:/\.m3u8|relayManifestUrl/i.test(html)};
+  }catch(error){return {source,milliseconds:Date.now()-started,error:error.name};}
+ }));
+ return sourceProbePromise;
+}
 function put(map,key,value,ttl,limit){map.delete(key);map.set(key,{value,until:Date.now()+ttl});while(map.size>limit)map.delete(map.keys().next().value);}
 function get(map,key){const hit=map.get(key);if(!hit)return null;if(hit.until<=Date.now()){map.delete(key);return null;}return hit.value;}
 function netSignal(deadline,signal){const timer=AbortSignal.timeout(Math.max(1,Math.min(15000,deadline-Date.now())));return signal?AbortSignal.any([timer,signal]):timer;}
@@ -31,6 +48,7 @@ const server=http.createServer(async(req,res)=>{
  const json=(status,data)=>{if(res.destroyed||res.writableEnded)return;res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};let controller,deadline=Infinity;const disconnected=()=>{if(!res.writableEnded)controller?.abort();};
  try{
   const path=new URL(req.url,'http://localhost').pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  if(path.length===1&&path[0]==='source-probe')return json(200,{note:'Reachability test only; not proof of working playback. Results cached for 60 seconds.',results:await probeSources()});
   if(path.length===1&&path[0]==='health')return json(200,{ok:true,version:'0.1.5',globalWorkers:2,requestBudgetMs:18000,netmirror:{phase:'unavailable',reason:'upstream_http_403'}});
   if(!path.length||(path.length===1&&path[0]==='configure')||(path.length===2&&path[1]==='configure')){const c=path.length===2?decode(path[0]):policy.normalize({sources:[]});const html=renderConfig(await inventory(),c);res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(html);}
   if(path.length===1&&path[0]==='manifest.json')return json(200,manifest(false));if(path.length===2&&path[1]==='manifest.json'){decode(path[0]);return json(200,manifest(true));}
