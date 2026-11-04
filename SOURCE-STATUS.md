@@ -1,18 +1,23 @@
 # Source status and investigation notes
 
-Last updated: 2026-11-03. These are observations from this project's Render deployment and user tests, not guarantees for all titles, networks, devices, or future requests.
+Last updated: 2026-11-04. These are observations from this project's Render deployment and user tests, not guarantees for all titles, networks, devices, or future requests.
 
 ## Status summary
 
 | Source | Evidence | Current status |
 | --- | --- | --- |
-| CNO | Source tester returned one link; measured 2.51 seconds initially and 0.06 seconds on a repeat request, with the same count. | Link extraction confirmed. Explicit device-playback confirmation was not recorded in those tests. |
+| CNO | User confirmed playback in the sandbox; the standalone adapter still needs separate live verification. | User-confirmed sandbox playback; fixture tests are not standalone live verification. |
 | PressPlay / MoviesAPI | User confirmed Nuvio playback. Family Guy S22E1 was tested using TMDB 1434. Later source tests returned two links, with 32.88 seconds initially and 0.22 seconds on repeat. | Playback confirmed by the user for the tested content. Uncached browser extraction remains relatively slow. |
-| Levidia / Wootly | Exact Family Guy S22E1 page; ordinary browser flow returned 302 to a signed MP4 and final 206 `video/mp4` with byte ranges. A local adapter prototype and installer are present but uncommitted. | Fixture tests and installer-chain check pass. Live backend execution and Nuvio playback are not verified; this prototype currently supports TMDB 1434 only. |
-| 4KHDHub | User reported working results previously, then reported that its results were missing after subsequent changes. | Previously working; missing-results issue remains unresolved. Do not mark currently broken or currently verified without a targeted test. |
+| Levidia / Wootly | Family Guy S22E1 was tested via both signed-MP4 and embed-first routes. | Hard failure: user confirmed the signed-MP4 link returns 403 and Nuvio returns zero links; the later tester link opens to 404 and Nuvio buffers. Levidia was attempted as an addon source and is not usable. This cleanup removes its adapter; no access-denial workarounds. |
+| NetMirror | Render-hosted access returned HTTP 403. | Excluded from source selection and the addon’s NetMirror worker/test files removed; do not retry the same blocked path. |
+| CinemaCity | Catalog listing was available, but playback required login; no stream was tested. | Excluded from the source selector; no usable anonymous path established. |
+| MovieBox | Research found no repository license and undocumented app-style authentication/signing. | Excluded pending clear redistribution rights and permitted API access; this is a permissions hold, not a playback-failure claim. |
+| 4KHDHub | User confirmed it works in Nuvio. | User-playback-verified; automated repository tests remain mock-only. |
 | Movy / Miami | An experimental custom adapter exists. | No confirmed working playback in the recorded investigation. Not proven impossible. |
 | Nepu | An ordinary request from Render returned HTTP 403 and a Cloudflare 'Just a moment...' page. | Parked after the ordinary-request block. No successful Render extraction established; a Chromium test was not recorded. |
 | Streaming Unity | Both the watch page and iframe route returned HTTP 403 from ordinary Render requests. A normal Chromium request also returned HTTP 403, 'Attention Required! | Cloudflare', and no playlist. | Parked: blocked from this Render deployment. Not added as a selectable source. This does not establish that the website is broken in a user's browser. |
+
+External-site investigations that were not registered as addon sources include MovieNestBD, SoapGo, PrimeWire, M4uHD, BFLIX, NOXX, and Streaming Unity. Their outcomes remain in the candidate notes; there is no provider integration for those site names to remove. Movy / Miami remains experimental and unverified, not classified as a confirmed hard failure.
 
 ## Why CNO was simpler
 

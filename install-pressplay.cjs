@@ -10,7 +10,7 @@ function patchServer(text){
  text=once(text,'deadline=started+18000;',"deadline=started+(decode(path[0]).sources.includes('pressplay')?60000:18000);");
  return once(text,'requestBudgetMs:18000,','requestBudgetMs:18000,pressplayRequestBudgetMs:60000,');
 }
-function patchTester(text){return text.includes("source==='pressplay'?65000:25000")||text.includes("['pressplay','levidia'].includes(source)?65000:25000")?text:once(text,'},25000);',"},source==='pressplay'?65000:25000);");}
+function patchTester(text){return text.includes("source==='pressplay'?65000:25000")?text:once(text,'},25000);',"},source==='pressplay'?65000:25000);");}
 function patchProvider(text){
  const auto="  streams.push({name:'PressPlay / MoviesAPI',title:'PressPlay / MoviesAPI | Auto | Playback unverified',quality:'unknown',url:resolved,headers:forUrl(resolved)});\n";
  if(text.includes(auto))text=once(text,auto,'');

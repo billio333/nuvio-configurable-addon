@@ -11,5 +11,5 @@ const server=fs.readFileSync('server.cjs','utf8'),tester=fs.readFileSync('source
 assert.equal(patchServer(patchServer(server)),patchServer(server));
 assert.equal(patchTester(patchTester(tester)),patchTester(tester));
 assert.ok(patchServer(server).includes("id:'pressplay'"));
-assert.ok(patchServer(server).includes(server.includes("id:'levidia'")?"sources.some(id=>['pressplay','levidia'].includes(id))?60000:18000":"sources.includes('pressplay')?60000:18000"));
+assert.ok(patchServer(server).includes("sources.includes('pressplay')?60000:18000"));
 (async()=>{assert.deepEqual(await getStreams('invalid','tv',22,1),[]);assert.deepEqual(await getStreams('1434','tv',-1,1),[]);console.log('PressPlay parser and integration tests passed; live playback not tested.');})().catch(e=>{console.error(e);process.exitCode=1;});
