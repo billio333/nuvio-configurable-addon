@@ -22,9 +22,6 @@ function isWootlyHost(host) { return /(^|\.)wootly\.ch$/i.test(String(host)); }
 function isAccessGate(status, title = '', text = '') {
   return status === 403 || status === 429 || /just a moment|attention required|access denied|verify (?:that )?you(?:'|’)re human|security verification|captcha/i.test(title + ' ' + text);
 }
-function isMp4Response(status, headers = {}) {
-  return status >= 200 && status < 300 && /^video\/mp4(?:\s*;|$)/i.test(headers['content-type'] || '');
-}
 function qualityFrom(filename) {
   const match = /(?:^|[.\s_-])(2160|1080|720|480)p?(?=$|[.\s_-])/i.exec(filename);
   return match ? match[1] + 'p' : 'unknown';
@@ -121,32 +118,24 @@ async function getStreams(id, type, season, episode, options = {}) {
       return [];
     }
 
-    stage = 'capture_mp4';
+    stage = 'capture_embed';
     const iframe = popup.locator('iframe').first();
     await iframe.waitFor({ state: 'attached', timeout: timeoutMs(deadline, 10000) });
-    const frame = await iframe.contentFrame();
-    if (!frame) return [];
-    const mp4Promise = popup.waitForResponse(response => isMp4Response(response.status(), response.headers()), { timeout: timeoutMs(deadline, 25000) }).catch(() => null);
-    const playButton = frame.locator('#prime').first();
-    await playButton.waitFor({ state: 'visible', timeout: timeoutMs(deadline, 10000) });
-    await playButton.click({ timeout: timeoutMs(deadline, 10000) });
-    const mediaResponse = await mp4Promise;
-    if (!mediaResponse) {
-      log({ stage, outcome: 'no_mp4_response', season, episode });
+    const iframeSrc = await iframe.getAttribute('src');
+    if (!iframeSrc) {
+      log({ stage, outcome: 'embed_src_missing', season, episode });
       return [];
     }
-
-    const url = mediaResponse.url();
-    let mediaHost = '';
-    try { mediaHost = new URL(url).hostname; } catch { return []; }
-    if (!/^https?:$/.test(new URL(url).protocol)) return [];
-    const headers = mediaResponse.headers();
+    let embedUrl;
+    try { embedUrl = new URL(iframeSrc, popup.url()); } catch { return []; }
+    if (embedUrl.protocol !== 'https:' || !isWootlyHost(embedUrl.hostname)) {
+      log({ stage, outcome: 'unexpected_embed_host', host: String(embedUrl.hostname || '').slice(0, 120) });
+      return [];
+    }
     const filename = filenameFromTitle(await popup.title().catch(() => ''), season, episode);
-    const requestHeaders = await mediaResponse.request().allHeaders().catch(() => ({}));
-    const playbackHeaders = {};
-    for (const key of ['referer', 'origin', 'user-agent']) if (requestHeaders[key]) playbackHeaders[key] = requestHeaders[key];
-    log({ stage, outcome: 'mp4_found', status: mediaResponse.status(), contentType: headers['content-type'] || '', contentRange: (headers['content-range'] || '').slice(0, 100), host: mediaHost, quality: qualityFrom(filename), playbackVerified: false });
-    return [{ name: 'Levidia / Wootly', title: filename, filename, quality: qualityFrom(filename), url, ...(Object.keys(playbackHeaders).length ? { headers: playbackHeaders } : {}) }];
+    const quality = qualityFrom(filename);
+    log({ stage, outcome: 'embed_found', host: embedUrl.hostname, quality, playbackVerified: false });
+    return [{ name: 'Levidia / Wootly embed test', title: filename, filename, quality, url: embedUrl.href }];
   } catch (error) {
     log({ stage, outcome: signal?.aborted ? 'cancelled' : 'failed', errorType: String(error?.name || 'Error').replace(/[^A-Za-z]/g, '').slice(0, 60) });
     return [];
@@ -161,4 +150,4 @@ async function getStreams(id, type, season, episode, options = {}) {
   }
 }
 
-module.exports = { getStreams, parseEpisodeHref, findEpisodeLink, isWootlyHost, isAccessGate, isMp4Response, qualityFrom, filenameFromTitle };
+module.exports = { getStreams, parseEpisodeHref, findEpisodeLink, isWootlyHost, isAccessGate, qualityFrom, filenameFromTitle };

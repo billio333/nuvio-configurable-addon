@@ -32,9 +32,9 @@ function patchTester(text) {
   return once(text, "source==='pressplay'?65000:25000", updated, 'tester deadline');
 }
 function patchConfig(text) {
-  if (text.includes("'levidia':'Experimental; browser captured")) return text;
+  if (text.includes("'levidia':'Embed-first diagnostic; returns only the Wootly iframe URL without cookie/header forwarding or proxy; Nuvio compatibility unverified.'")) return text;
   text = once(text, "group:['movy-miami','cno','pressplay'].includes(e.id)?'custom':'original'", "group:['movy-miami','cno','pressplay','levidia'].includes(e.id)?'custom':'original'", 'custom-source group');
-  text = once(text, "'pressplay':'Playback confirmed by you for Family Guy S22E1. Browser extraction is slow; 360p and unrestricted Auto are excluded.',", "'pressplay':'Playback confirmed by you for Family Guy S22E1. Browser extraction is slow; 360p and unrestricted Auto are excluded.','levidia':'Experimental; browser captured an HTTP MP4 for Family Guy S22E1. Nuvio playback is unverified.',", 'source note');
+  text = once(text, "'pressplay':'Playback confirmed by you for Family Guy S22E1. Browser extraction is slow; 360p and unrestricted Auto are excluded.',", "'pressplay':'Playback confirmed by you for Family Guy S22E1. Browser extraction is slow; 360p and unrestricted Auto are excluded.','levidia':'Embed-first diagnostic; returns only the Wootly iframe URL without cookie/header forwarding or proxy; Nuvio compatibility unverified.',", 'source note');
   return text;
 }
 function patchPolicy(text) {
