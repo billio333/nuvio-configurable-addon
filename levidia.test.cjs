@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { parseEpisodeHref, findEpisodeLink, isWootlyHost, isAccessGate, isMp4Response, qualityFrom, filenameFromTitle, getStreams } = require('./levidia.cjs');
+const { parseEpisodeHref, findEpisodeLink, isWootlyHost, isAccessGate, qualityFrom, filenameFromTitle, getStreams } = require('./levidia.cjs');
 const { patchServer, patchPool, patchProviderCache, patchTester, patchConfig, patchPolicy } = require('./install-levidia.cjs');
 const pressplay = require('./install-pressplay.cjs');
 
@@ -20,8 +20,6 @@ assert.equal(isWootlyHost('wootly.example.invalid'), false);
 assert.equal(isAccessGate(403), true);
 assert.equal(isAccessGate(200, 'Just a moment'), true);
 assert.equal(isAccessGate(200, 'Wootly', 'Play'), false);
-assert.equal(isMp4Response(206, { 'content-type': 'video/mp4' }), true);
-assert.equal(isMp4Response(200, { 'content-type': 'application/octet-stream' }), false);
 assert.equal(qualityFrom('Family.Guy.S22E01.720p.WEB.h264-BAE.WT11.mp4'), '720p');
 assert.equal(filenameFromTitle('Family.Guy.S22E01.720p.WEB.h264-BAE.WT11.mp4', 22, 1), 'Family.Guy.S22E01.720p.WEB.h264-BAE.WT11.mp4');
 assert.equal(filenameFromTitle('', 22, 1), 'Family.Guy.S22E01.mp4');
@@ -31,22 +29,16 @@ assert.equal(filenameFromTitle('', 22, 1), 'Family.Guy.S22E01.mp4');
   assert.deepEqual(await getStreams('1434', 'movie', 22, 1), []);
   assert.deepEqual(await getStreams('1434', 'tv', 0, 1), []);
 
-  const fixtureUrl = 'https://media.example.test/episode.mp4?token=fixture';
+  let fixtureUrl = 'https://web.wootly.ch/e/fixture';
   const filename = 'Family.Guy.S22E01.720p.WEB.h264-BAE.WT11.mp4';
-  const mediaResponse = {
-    status: () => 206,
-    headers: () => ({ 'content-type': 'video/mp4', 'content-range': 'bytes 0-99/100' }),
-    url: () => fixtureUrl,
-    request: () => ({ allHeaders: async () => ({ referer: 'https://web.wootly.ch/e/fixture', 'user-agent': 'fixture' }) })
+  const iframe = {
+    waitFor: async () => {},
+    getAttribute: async name => name === 'src' ? fixtureUrl : null
   };
-  const primeButton = { first() { return this; }, waitFor: async () => {}, click: async () => {} };
-  const frame = { locator: () => primeButton };
-  const iframe = { waitFor: async () => {}, contentFrame: async () => frame };
   const popup = {
     url: () => 'https://www.wootly.ch/?v=fixture', title: async () => filename,
     waitForURL: async () => {}, waitForLoadState: async () => {}, close: async () => {},
-    locator: selector => selector === 'iframe' ? { first: () => iframe } : { innerText: async () => 'Wootly player' },
-    waitForResponse: async () => mediaResponse
+    locator: selector => selector === 'iframe' ? { first: () => iframe } : { innerText: async () => 'Wootly player' }
   };
   const playLink = { count: async () => 1, click: async () => {} };
   const row = { locator: () => ({ filter: () => ({ first: () => playLink }) }) };
@@ -61,7 +53,9 @@ assert.equal(filenameFromTitle('', 22, 1), 'Family.Guy.S22E01.mp4');
   assert.equal(streams[0].url, fixtureUrl);
   assert.equal(streams[0].filename, filename);
   assert.equal(streams[0].quality, '720p');
-  assert.equal(streams[0].headers.referer, 'https://web.wootly.ch/e/fixture');
+  assert.equal(Object.hasOwn(streams[0], 'headers'), false);
+  fixtureUrl = 'https://example.invalid/e/fixture';
+  assert.deepEqual(await getStreams('1434', 'tv', 22, 1, { deadline: Date.now() + 30000, launch: async () => browser }), []);
 
   const rawServer = fs.readFileSync('server.cjs', 'utf8');
   const pressplayServer = pressplay.patchServer(rawServer);
@@ -79,7 +73,7 @@ assert.equal(filenameFromTitle('', 22, 1), 'Family.Guy.S22E01.mp4');
     const base = fs.readFileSync(file, 'utf8');
     let text = base;
     if (file === 'source-tester.cjs' && !base.includes("['pressplay','levidia'].includes(source)")) text = pressplay.patchTester(base);
-    if (file === 'config-page.cjs' && !base.includes("'levidia':'Experimental; browser captured")) text = pressplay.patchConfig(base);
+    if (file === 'config-page.cjs' && !base.includes("'levidia':'Embed-first diagnostic; returns only the Wootly iframe URL")) text = pressplay.patchConfig(base);
     const once = patch(text);
     assert.equal(patch(once), once, `${file} patch is idempotent`);
   }
