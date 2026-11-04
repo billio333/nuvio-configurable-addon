@@ -1,7 +1,7 @@
 'use strict';
 // Reusable stream-result formatter. Display only: never alters url, headers, or content identity.
 // Only shows metadata that is actually present in the provider result or its filename.
-const PROVIDERS={'4khdhub':'4KHDHub',cno:'CNO',pressplay:'PressPlay',castle:'Castle','movy-miami':'Movy',moviebox:'MovieBox',vidfast:'VidFast'};
+const PROVIDERS={'4khdhub':'4KHDHub',cno:'CNO',pressplay:'PressPlay',castle:'Castle','movy-miami':'Movy',vidfast:'VidFast'};
 const HOSTS=[[/pixeldrain/i,'Pixeldrain'],[/r2\.cloudflarestorage\.com$/i,'Cloudflare R2'],[/hubcloud/i,'HubCloud'],[/hubdrive/i,'HubDrive'],[/workers\.dev$/i,'Cloudflare Worker'],[/googleusercontent|drive\.google/i,'Google Drive'],[/mega\.nz$/i,'Mega'],[/gofile/i,'GoFile']];
 const clean=v=>String(v==null?'':v).replace(/[\u200B-\u200D\uFEFF\r]/g,'').trim();
 function providerLabel(entry){const id=entry&&entry.id;if(PROVIDERS[id])return PROVIDERS[id];const n=clean(entry&&entry.name).replace(/\s*[-(–].*$/,'').trim();return n||clean(id)||'Source';}

@@ -13,7 +13,6 @@ function probeSources(){
  if(sourceProbePromise&&Date.now()<sourceProbeUntil)return sourceProbePromise;
  sourceProbeUntil=Date.now()+60000;
  sourceProbePromise=Promise.all([
-  ['Nepu','https://nepu.io/'],
   ['PressPlay','https://pressplayz.top/watch/tv-family-guy-fjboc?season=22&episode=1']
  ].map(async([source,url])=>{
   const started=Date.now();
@@ -34,7 +33,7 @@ function manifest(configured,base){return {...(base&&logoPng?{logo:base+'/logo.p
 function decode(token){if(token.length>12000)throw new Error('Configuration too large');return policy.normalize(JSON.parse(Buffer.from(token,'base64url').toString('utf8')));}
 function resolution(s){function read(value){const text=String(value||'').replace(/[\u200B-\u200D\uFEFF]/g,'');const m=/(?:^|[^A-Za-z0-9])(2160|1080|720|480)(?:p|i)?(?=$|[^A-Za-z0-9])/i.exec(text);if(m)return m[1];if(/(?:^|[^A-Za-z0-9])(?:4k|uhd)(?=$|[^A-Za-z0-9])/i.test(text))return '2160';return null;}return read(s.quality)||read(s.title)||read(s.name)||'unknown';}
 function execute(entry,args,signal,deadline){return new Promise(resolve=>{
- if(entry.id==='netmirror'||signal.aborted||Date.now()>=deadline)return resolve([]);let worker,settled=false,timer;const started=Date.now();
+ if(signal.aborted||Date.now()>=deadline)return resolve([]);let worker,settled=false,timer;const started=Date.now();
  const finish=(streams,reason)=>{if(settled)return;settled=true;clearTimeout(timer);signal.removeEventListener('abort',cancel);const done=()=>{const value=Array.isArray(streams)?streams:[];stats.set(entry.id,{ms:Date.now()-started,count:value.length});log({event:'provider_timing',provider:entry.id,reason,ms:Date.now()-started,count:value.length});resolve(value);};if(worker)worker.terminate().then(done,done);else done();};
  const cancel=()=>finish([],'cancelled');try{worker=new Worker(require.resolve('./provider-worker.cjs'),{workerData:{root:ROOT,entry,args},resourceLimits:{maxOldGenerationSizeMb:96}});}catch{return finish([],'start_failed');}
  signal.addEventListener('abort',cancel,{once:true});timer=setTimeout(()=>finish([],'provider_timeout'),Math.max(1,Math.min(20000,deadline-Date.now())));worker.once('message',v=>finish(v,'completed'));worker.once('error',()=>finish([],'worker_error'));worker.once('exit',()=>finish([],'worker_exit'));if(signal.aborted)cancel();
@@ -52,7 +51,7 @@ const server=http.createServer(async(req,res)=>{
  try{
   const path=new URL(req.url,'http://localhost').pathname.split('/').filter(Boolean).map(decodeURIComponent);
   if(path.length===1&&path[0]==='source-probe')return json(200,{note:'Reachability test only; not proof of working playback. Results cached for 60 seconds.',results:await probeSources()});
-  if(path.length===1&&path[0]==='health')return json(200,{ok:true,version:'0.1.5',globalWorkers:2,requestBudgetMs:18000,netmirror:{phase:'unavailable',reason:'upstream_http_403'}});
+  if(path.length===1&&path[0]==='health')return json(200,{ok:true,version:'0.1.5',globalWorkers:2,requestBudgetMs:18000,});
   if(!path.length||(path.length===1&&path[0]==='configure')||(path.length===2&&path[1]==='configure')){const c=path.length===2?decode(path[0]):policy.normalize({sources:[]});const html=renderConfig(await inventory(),c);res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(html);}
   if(path.length===1&&path[0]==='logo.png'){if(!logoPng)return json(404,{error:'Not found'});res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'public, max-age=86400','Content-Length':logoPng.length});return res.end(logoPng);}
   if(path.length===1&&path[0]==='manifest.json')return json(200,manifest(false,baseUrl(req)));if(path.length===2&&path[1]==='manifest.json'){decode(path[0]);return json(200,manifest(true,baseUrl(req)));}
